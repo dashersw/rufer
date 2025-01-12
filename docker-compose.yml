@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+    ports:
+      - '3000:3000'
+    environment:
+      - PORT=3000
+      - DATABASE_URL=mongodb+srv://user:password@database-name-host?retryWrites=true&retryReads=true&w=majority&readPreference=primary&appName=Cluster0
+      - NODE_ENV=development
+      - RUFER_SECRET_KEY=your-secret-key
+    volumes:
+      - ./src:/app/src
+    command: npm run dev
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  reference-backend:
+    build:
+      context: ./reference-implementation/backend
+    ports:
+      - '4000:4000'
+    environment:
+      - PORT=4000
+      - RUFER_URL=http://api:3000
+      - RUFER_SECRET_KEY=your-secret-key
+    volumes:
+      - ./reference-implementation/backend/src:/app/src
+    command: npm run dev
+    depends_on:
+      api:
+        condition: service_healthy
+
+  reference-frontend:
+    build:
+      context: ./reference-implementation/frontend
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./reference-implementation/frontend/src:/app/src
+    command: npm run dev
+    depends_on:
+      api:
+        condition: service_healthy
+      reference-backend:
+        condition: service_started
